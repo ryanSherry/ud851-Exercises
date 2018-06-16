@@ -16,14 +16,18 @@
 
 package com.example.android.todolist;
 
+import android.arch.lifecycle.LiveData;
+import android.arch.lifecycle.Observer;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.annotation.Nullable;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.DividerItemDecoration;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.support.v7.widget.helper.ItemTouchHelper;
+import android.util.Log;
 import android.view.View;
 
 import com.example.android.todolist.database.AppDatabase;
@@ -84,7 +88,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
                         int position = viewHolder.getAdapterPosition();
                         final List<TaskEntry> tasks = mAdapter.getTasks();
                         mDb.taskDao().deleteTask(tasks.get(position));
-                        retrieveTasks();
+//                        retrieveTasks();
                     }
                 });
             }
@@ -107,30 +111,45 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
         });
 
         mDb = AppDatabase.getsInstance(getApplicationContext());
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
         retrieveTasks();
-
     }
+
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        retrieveTasks();
+//
+//    }
 
     private void retrieveTasks() {
-        AppExecutors.getsInstance().getDiskIO().execute(new Runnable() {
+
+        Log.d(TAG, "Actively retrieving the tasks");
+        final LiveData<List<TaskEntry>> tasks = mDb.taskDao().loadAllTasks();
+        tasks.observe(this, new Observer<List<TaskEntry>>() {
             @Override
-            public void run() {
-                final List<TaskEntry> tasks = mDb.taskDao().loadAllTasks();
-                //We will simplify once we learn more about android archictecture components
-                runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        mAdapter.setTasks(tasks);
-                    }
-                });
+            public void onChanged(@Nullable List<TaskEntry> taskEntries) {
+                Log.d(TAG, "Receiving database update from LiveData");
+                mAdapter.setTasks(taskEntries);
             }
         });
+        //We will simplify once we learn more about android archictecture components
+//        runOnUiThread(new Runnable() {
+//            @Override
+//            public void run() {
+//                mAdapter.setTasks(tasks);
+//            }
+//        });
     }
+
+//don't need because LiveData runs in separate thread already
+
+//        AppExecutors.getsInstance().getDiskIO().execute(new Runnable() {
+//            @Override
+//            public void run() {
+//
+//            }
+//        });
+
 
     @Override
     public void onItemClickListener(int itemId) {
